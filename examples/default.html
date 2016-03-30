@@ -1,0 +1,123 @@
+<!doctype html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <title>Boxer Grid Plugin Default Example</title>
+    <!-- Load local jQuery. -->
+    <script src="../bower_components/jquery/dist/jquery.js"></script>
+    <!-- Load local lib and tests. -->
+    <script src="../src/boxer-grid.js"></script>    
+
+    <style>
+      body {
+        background-color: #ecf0f1;
+        margin: 0 auto;
+      }
+      
+      #grid {
+        top: 10px;
+        position: relative;        
+      }
+
+      .box {
+        width: 236px;
+        border-radius: 5px;
+        position: absolute;
+
+        box-sizing: border-box;
+        -moz-box-sizing: border-box;
+        -webkit-box-sizing: border-box;      
+        border: 1px solid black;    
+
+        font-size: 72px;         
+        color: #ecf0f1;
+        text-align: center;
+      }
+
+      .box.small {        
+        height: 475px;  
+        line-height: 475px;      
+      }
+
+      .box.medium {
+        height: 681px;
+        line-height: 681px;
+      }
+
+      .box.large {
+        height: 920px;
+        line-height: 920px;
+      }
+
+      /* COLORS */
+      .box.alizarin {
+        background-color: #e74c3c;
+      }
+      .box.carrot {
+        background-color: #e67e22;
+      }
+      .box.nephrits {
+        background-color: #27ae60;
+      }
+      .box.wisteria {
+        background-color: #8e44ad;
+      }
+      .box.midnight_blue {
+        background-color: #2c3e50;
+      }
+      .box.concrete {
+        background-color: #95a5a6;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="grid">    
+      
+    </div>
+
+    <script>
+      $(function() {
+        var sizes = ['small', 'medium']; //, 'large'
+        var colors = ['alizarin', 'carrot', 'nephrits', 'wisteria', 'midnight_blue', 'concrete'];
+
+        function shuffle(a) {
+          var j, x, i;
+          for (i = a.length; i; i -= 1) {
+            j = Math.floor(Math.random() * i);
+            x = a[i - 1];
+            a[i - 1] = a[j];
+            a[j] = x;
+          }
+        }
+
+        for(var i = 0; i < 500; i++) {
+            shuffle(sizes);
+            shuffle(colors);
+            var color = sizes[Math.floor(Math.random() * sizes.length)];
+            var size = colors[Math.floor(Math.random() * colors.length)];
+            $("#grid").append('<div class="box '+size+' '+color+'">'+i+'</div>');
+        }
+
+
+        $('#grid').boxerGrid({
+          itemSelector: '.box',
+          columnWidth: 236,
+          columnMargin: 15,
+          positionOrder: 'dom'
+        });
+
+        $('.box').on('click', function() {
+          if($(this).hasClass('small')) {
+            $(this).removeClass('small').addClass('medium');
+          } else if($(this).hasClass('medium')) {
+            $(this).removeClass('medium').addClass('large');
+          } else if($(this).hasClass('large')) {
+            $(this).removeClass('large').addClass('small');
+          }        
+
+          $(window).trigger('resize');
+        });
+      });
+    </script>
+  </body>
+</html>
