@@ -1,4 +1,4 @@
-# Boxer Grid Plugin
+# Boxer Grid Plugin 
 
 > Awesome grid jquery plugin
 
