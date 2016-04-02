@@ -8,7 +8,7 @@
 (function ($) {
     var GRID;
     var NUM_PAGES = 1,
-        VISIBLE_PAGES = NUM_PAGES * 2 + 1
+        VISIBLE_PAGES = NUM_PAGES*.5
         PAGE_HEIGHT = 1;
         
         var colors = ['alizarin', 'carrot', 'nephrits', 'wisteria', 'midnight_blue', 'concrete'];
@@ -64,21 +64,27 @@
         this.pageNumber = 0;
         this.top = 0;
         this.bottom = 0;
+        this.isVisible = true;
     }
 
     Page.prototype.init = function(pageNumber) {
         this.pageNumber = pageNumber;
         // this.$el.top = pageNumber * (GRID.window.height * PAGE_HEIGHT);
         this.$el.attr('id', 'grid-page-'+pageNumber);
+        this.$el.attr('data-grid-type', 'page');
         this.$el.css({
-            'position': 'relative',            
+            'position': 'absolute',            
             'width': '100%',
             'height': (GRID.window.height * PAGE_HEIGHT),
+            'top': pageNumber * (GRID.window.height * PAGE_HEIGHT),
             // 'box-sizing': 'border-box',
             // '-moz-box-sizing': 'border-box',
             // '-webkit-box-sizing': 'border-box',
             // 'border': '1px solid black',
-            // 'z-index': '-1'
+            // 'z-index': '-1',
+            'opacity': 1,
+            '-webkit-transition': 'opacity 0.5s ease-out',
+            'transition': 'opacity 0.5s ease-out'
         });
         
 
@@ -92,9 +98,16 @@
         this.bottom = this.top + (GRID.window.height * PAGE_HEIGHT);
     };
 
-    Page.prototype.append = function(gridItem) {
+    Page.prototype.append = function(gridItem) {        
         this.gridItems.push(gridItem);
-        this.$el.append(gridItem.$el);
+        // this.$el.append(gridItem.$el);
+    };
+    Page.prototype.massAppend = function() {
+        var $els = [];
+        for(var i = 0; i < this.gridItems.length; i++) {
+            $els.push(this.gridItems[i].$el);
+        }
+        this.$el.append($els);
     };
 
     Page.prototype.checkVisibility = function() {
@@ -103,10 +116,22 @@
             (this.bottom >= GRID.visibleTop && this.bottom <= GRID.visibleBottom) ||
             (this.top <= GRID.visibleTop && this.bottom >= GRID.visibleBottom)
         ) {
-            this.$el.css('visibility', 'visible');
+            if(!this.isVisible){
+                // GRID.$el.append(this.$el);
+                this.isVisible = true;
+                return {action:'append', page:this.$el};                
+            }            
+            // this.$el.css('visibility', 'visible');            
         } else {
-            this.$el.css('visibility', 'hidden');
+            if(this.isVisible) {
+                // this.$el = this.$el.detach();
+                this.isVisible = false;
+                return {action:'detach'};
+            }            
+            // this.$el.css('visibility', 'hidden');
         }
+
+        return null;
     };
 
 
@@ -143,7 +168,7 @@
             var gridItem = new GridItem($(this));
             
             gridItem.width = gridItem.$el.width();
-            gridItem.height = gridItem.$el.height();            
+            gridItem.height = gridItem.$el.height();                      
 
             self.processGridItem(gridItem);
 
@@ -156,9 +181,20 @@
             }
         });
 
+        // var $elPages = [];
+        for(var i = 0; i < this.pages.length; i++) {            
+            this.pages[i].massAppend();
+
+            // $elPages.push(this.pages[i].$el);
+        }
+
+        // this.$el.append($elPages);
+
         this.currentColumn = 0;
         this.currentRow = [];
         this.previousRow = [];
+
+        this.$el.css('height', this.pages.length * (GRID.window.height * PAGE_HEIGHT));
     };
 
     Grid.prototype.processGridItem = function(gridItem, addToArray) {
@@ -224,8 +260,24 @@
         this.visibleTop = this.scrollTop - (VISIBLE_PAGES * (GRID.window.height * PAGE_HEIGHT));
         this.visibleBottom = this.scrollTop + (GRID.window.height * PAGE_HEIGHT) + (VISIBLE_PAGES * (GRID.window.height * PAGE_HEIGHT));        
 
+        var append = '';
+        var detach = '';
         for(var i = this.pages.length - 1; i >= 0; i--) {
-            this.pages[i].checkVisibility();
+            var obj = this.pages[i].checkVisibility();            
+            if(obj) {
+                if(obj.action == "append") {
+                    // append.push(obj.page);
+                    append += $("<div />").append(obj.page.clone()).html();
+                } else if(obj.action == "detach") detach += (detach != '' ? ',' : '')+'#grid-page-'+i;
+            }
+        }        
+        
+        $(detach).css('opacity', 0);
+        $(detach).detach();
+        if(append != '') {
+            document.getElementById(this.$el.attr('id')).innerHTML += append;        
+            // this.$el.append(append);        
+            this.$el.find('div').delay(5).css('opacity', 1);
         }
     };
 
@@ -300,7 +352,13 @@
 
 	    return this.each(function (i) {
             GRID = new Grid($(this), settings);            
-            GRID.init();
+            $( window ).load(function() {
+                var start = new Date().getTime();
+                GRID.init();
+                var end = new Date().getTime();
+                var time = end - start;      
+                console.log('INIT', 'Execution time:', time);                     
+            });            
 	   //   	var $grid = $(this);     	
 	   //   	var totalColumns = 0;
 	   //   	var columns = [];
