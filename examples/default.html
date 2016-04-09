@@ -21,7 +21,7 @@
 
       .box {
         width: 236px;
-        border-radius: 5px;
+        border-radius: 15px;
         position: absolute;
 
         box-sizing: border-box;
@@ -75,6 +75,10 @@
       
     </div>
 
+    <script type="boxer/template" id="box">
+      <div class="box"></div>
+    </script>
+
     <script>
       $(function() {
         var sizes = ['small', 'medium', 'large'];
@@ -90,12 +94,29 @@
           }
         }
 
-        for(var i = 0; i < 2000; i++) {
+        var BOX = function(i, size, color) {
+          this.type = "box";
+
+          this.i = i;
+          this.size = size;
+          this.color = color;
+
+          this.$el;
+
+          this.relayout = function() {
+            this.$el.attr('class', 'box '+this.size+' '+this.color);            
+            this.$el.html(i);
+          };
+        };
+
+        var boxes = [];
+        for(var i = 0; i < 5000; i++) {
             shuffle(sizes);
             shuffle(colors);
             var color = sizes[Math.floor(Math.random() * sizes.length)];
             var size = colors[Math.floor(Math.random() * colors.length)];
-            $("#grid").append('<div class="box '+size+' '+color+'">'+i+'</div>');
+            // $("#grid").append('<div class="box '+size+' '+color+'">'+i+'</div>');            
+            boxes.push(new BOX(i, size, color));
         }
 
 
@@ -104,7 +125,11 @@
           columnWidth: 236,
           columnMargin: 15,
           positionOrder: 'space',
-          debug: true
+          debug: true,
+          items: boxes,
+          templates: {
+            box: $('#box').html()
+          }
         });
 
         $('.box').on('click', function() {

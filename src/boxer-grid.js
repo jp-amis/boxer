@@ -8,7 +8,7 @@
 (function ($) {
     var GRID;
     var NUM_PAGES = 1,
-        VISIBLE_PAGES = NUM_PAGES*.5
+        VISIBLE_PAGES = NUM_PAGES*1
         PAGE_HEIGHT = 1;
         
         var colors = ['alizarin', 'carrot', 'nephrits', 'wisteria', 'midnight_blue', 'concrete'];
@@ -30,8 +30,10 @@
         });
     }
 
-    function GridItem($el) {
-        this.$el = $el;
+    function GridItem(item, $el) {
+        this.item = item;
+        
+        this.$el = null;
 
         this.top = 0;
         this.bottom = 0;
@@ -41,14 +43,27 @@
         this.height = 0;
 
         this.column = 0;
-        this.pageNumber = 0;
+        this.pageNumber = 0;        
     }
+
+    GridItem.prototype.setEl = function($el) {        
+        this.item.$el = this.$el = $el;
+        if($el)
+            this.item.$el.attr('data-h', this.height);
+    };
 
     GridItem.prototype.relayout = function() {
         this.$el.css({
-            top: this.top - (this.pageNumber * (GRID.window.height * PAGE_HEIGHT)),
+            top: this.top, // - (this.pageNumber * (GRID.window.height * PAGE_HEIGHT)),
             left: this.left,
-        })
+        });
+    };
+
+    GridItem.prototype.hide = function() {
+        this.$el.css('visibility', 'hidden');
+    };
+    GridItem.prototype.show = function() {
+        this.$el.css('visibility', 'visible');
     };
 
     // GridItem.prototype.updateRect = function() {
@@ -60,39 +75,39 @@
 
     function Page() {        
         this.gridItems = [];
-        this.$el = createEmptyDiv();
+        // this.$el = createEmptyDiv();
         this.pageNumber = 0;
         this.top = 0;
         this.bottom = 0;
-        this.isVisible = true;
+        this.isVisible = false;
     }
 
     Page.prototype.init = function(pageNumber) {
         this.pageNumber = pageNumber;
-        // this.$el.top = pageNumber * (GRID.window.height * PAGE_HEIGHT);
-        this.$el.attr('id', 'grid-page-'+pageNumber);
-        this.$el.attr('data-grid-type', 'page');
-        this.$el.css({
-            'position': 'absolute',            
-            'width': '100%',
-            'height': (GRID.window.height * PAGE_HEIGHT),
-            'top': pageNumber * (GRID.window.height * PAGE_HEIGHT),
-            // 'box-sizing': 'border-box',
-            // '-moz-box-sizing': 'border-box',
-            // '-webkit-box-sizing': 'border-box',
-            // 'border': '1px solid black',
-            // 'z-index': '-1',
-            'opacity': 1,
-            '-webkit-transition': 'opacity 0.5s ease-out',
-            'transition': 'opacity 0.5s ease-out'
-        });
+        
+        // this.$el.attr('id', 'grid-page-'+pageNumber);
+        // this.$el.attr('data-grid-type', 'page');
+        // this.$el.css({
+        //     'position': 'absolute',            
+        //     'width': '100%',
+        //     'height': (GRID.window.height * PAGE_HEIGHT),
+        //     'top': pageNumber * (GRID.window.height * PAGE_HEIGHT),
+        //     // 'box-sizing': 'border-box',
+        //     // '-moz-box-sizing': 'border-box',
+        //     // '-webkit-box-sizing': 'border-box',
+        //     // 'border': '1px solid black',
+        //     // 'z-index': '-1',
+        //     'opacity': 1,
+        //     '-webkit-transition': 'opacity 0.5s ease-out',
+        //     'transition': 'opacity 0.5s ease-out'
+        // });
         
 
         // shuffle(colors);
         // var color = colors[Math.floor(Math.random() * colors.length)];
         // this.$el.addClass(color);
 
-        GRID.$el.append(this.$el);
+        // GRID.$el.append(this.$el);
 
         this.top = pageNumber * (GRID.window.height * PAGE_HEIGHT);
         this.bottom = this.top + (GRID.window.height * PAGE_HEIGHT);
@@ -107,7 +122,7 @@
         for(var i = 0; i < this.gridItems.length; i++) {
             $els.push(this.gridItems[i].$el);
         }
-        this.$el.append($els);
+        GRID.$el.append($els);
     };
 
     Page.prototype.checkVisibility = function() {
@@ -119,13 +134,26 @@
             if(!this.isVisible){
                 // GRID.$el.append(this.$el);
                 this.isVisible = true;
-                return {action:'append', page:this.$el};                
+                // for(var i = 0; i < this.gridItems.length; i++) {
+                //     this.gridItems[i].setEl(GRID.pools[this.gridItems[i].item.type].getObject());
+                //     this.gridItems[i].relayout();
+                //     this.gridItems[i].item.relayout();
+                //     GRID.$el.append(this.gridItems[i].$el);
+                // }
+                return {action:'append'};                
             }            
             // this.$el.css('visibility', 'visible');            
         } else {
             if(this.isVisible) {
                 // this.$el = this.$el.detach();
                 this.isVisible = false;
+                // for(var i = 0; i < this.gridItems.length; i++) {     
+                //     if(this.gridItems[i].item.$el) {
+                //         GRID.pools[this.gridItems[i].item.type].release(this.gridItems[i].item.$el);
+                //     } else {
+                //         break;
+                //     }
+                // }
                 return {action:'detach'};
             }            
             // this.$el.css('visibility', 'hidden');
@@ -141,6 +169,8 @@
 
         this.pages = [];
         this.gridItems = [];
+        this.processedGridItems = 0;
+        this.pools = {};
 
         this.totalColumns = -1;
 
@@ -164,22 +194,24 @@
         this.totalColumns = parseInt(this.window.width/(this.settings.columnWidth + this.settings.columnMargin));
 
         // Loop over itens to put it in pages
-        this.$el.find(this.settings.itemSelector).each(function() {                                 
-            var gridItem = new GridItem($(this));
-            
-            gridItem.width = gridItem.$el.width();
-            gridItem.height = gridItem.$el.height();                      
+        // this.$el.find(this.settings.itemSelector).each(function() {     
+        for(var i = 0; i < this.settings.items.length; i++) {                            
+            var gridItem = new GridItem(this.settings.items[i]);
+            this.gridItems.push(gridItem);
+            // gridItem.width = gridItem.$el.width();
+            // gridItem.height = gridItem.$el.height();
 
-            self.processGridItem(gridItem);
+            // self.processGridItem(gridItem);
 
-            self.currentColumn++;
+            // self.currentColumn++;
 
-            if(self.currentColumn == self.totalColumns) {
-                self.previousRow = self.currentRow;
-                self.currentRow = [];
-                self.currentColumn = 0;
-            }
-        });
+            // if(self.currentColumn == self.totalColumns) {
+            //     self.previousRow = self.currentRow;
+            //     self.currentRow = [];
+            //     self.currentColumn = 0;
+            // }
+        }
+        // });
 
         // var $elPages = [];
         for(var i = 0; i < this.pages.length; i++) {            
@@ -189,12 +221,9 @@
         }
 
         // this.$el.append($elPages);
+        
 
-        this.currentColumn = 0;
-        this.currentRow = [];
-        this.previousRow = [];
-
-        this.$el.css('height', this.pages.length * (GRID.window.height * PAGE_HEIGHT));
+        this.updateVisibility();
     };
 
     Grid.prototype.processGridItem = function(gridItem, addToArray) {
@@ -249,8 +278,8 @@
         }        
 
         page.append(gridItem);
-        if(addToArray !== false)
-            this.gridItems.push(gridItem);
+        // if(addToArray !== false)
+        //     this.gridItems.push(gridItem);
         gridItem.pageNumber = page.pageNumber;
         gridItem.relayout();
     };
@@ -258,27 +287,95 @@
     Grid.prototype.updateVisibility = function(e) {                
         this.scrollTop = $(window).scrollTop();
         this.visibleTop = this.scrollTop - (VISIBLE_PAGES * (GRID.window.height * PAGE_HEIGHT));
-        this.visibleBottom = this.scrollTop + (GRID.window.height * PAGE_HEIGHT) + (VISIBLE_PAGES * (GRID.window.height * PAGE_HEIGHT));        
+        this.visibleBottom = this.scrollTop + (GRID.window.height * PAGE_HEIGHT) + (VISIBLE_PAGES * (GRID.window.height * PAGE_HEIGHT));                
 
-        var append = '';
-        var detach = '';
-        for(var i = this.pages.length - 1; i >= 0; i--) {
-            var obj = this.pages[i].checkVisibility();            
-            if(obj) {
-                if(obj.action == "append") {
-                    // append.push(obj.page);
-                    append += $("<div />").append(obj.page.clone()).html();
-                } else if(obj.action == "detach") detach += (detach != '' ? ',' : '')+'#grid-page-'+i;
+        var mustProcess = false;
+        if(this.processedGridItems < this.gridItems.length) {
+            mustProcess = true;
+        }
+
+        
+        while(mustProcess) {
+            var gridItem = this.gridItems[this.processedGridItems];
+
+
+            if(!this.pools[gridItem.item.type]) this.pools[gridItem.item.type] = new Pool(gridItem.item.type);
+
+            gridItem.setEl(this.pools[gridItem.item.type].getObject());
+            gridItem.hide();
+
+            gridItem.item.relayout();
+            this.$el.append(gridItem.$el);
+            
+            gridItem.width = gridItem.$el.width();
+            gridItem.height = gridItem.$el.height();
+
+            this.processGridItem(gridItem);
+
+            this.currentColumn++;
+
+            if(this.currentColumn == this.totalColumns) {
+                this.previousRow = this.currentRow;
+                this.currentRow = [];
+                this.currentColumn = 0;
             }
+
+            gridItem.show();
+
+            this.pools[gridItem.item.type].release(gridItem.$el);
+
+
+            this.processedGridItems++;
+            if(this.processedGridItems == this.gridItems.length) {
+                mustProcess = false;
+            }
+
+            gridItem.setEl(null);
+        }
+
+        this.currentColumn = 0;
+        this.currentRow = [];
+        this.previousRow = [];
+
+        this.$el.css('height', this.pages.length * (GRID.window.height * PAGE_HEIGHT));
+
+        var append = [];
+        var detach = [];
+        for(var i = this.pages.length - 1; i >= 0; i--) {
+            var obj = this.pages[i].checkVisibility();    
+            if(obj) {
+                if(obj.action == "append") append.push(this.pages[i]);
+                if(obj.action == "detach") detach.push(this.pages[i]);
+            }        
         }        
         
-        $(detach).css('opacity', 0);
-        $(detach).detach();
-        if(append != '') {
-            document.getElementById(this.$el.attr('id')).innerHTML += append;        
-            // this.$el.append(append);        
-            this.$el.find('div').delay(5).css('opacity', 1);
+        for(var i = 0; i < detach.length; i++) {                  
+            for(var j = 0; j < detach[i].gridItems.length; j++) {                
+                if(detach[i].gridItems[j].item.$el) {                    
+                    GRID.pools[detach[i].gridItems[j].item.type].release(detach[i].gridItems[j].item.$el);
+                } else {
+                    break;
+                }                
+            }
+        }        
+
+        for(var i = 0; i < append.length; i++) {            
+            for(var j = 0; j < append[i].gridItems.length; j++) {
+                append[i].gridItems[j].setEl(GRID.pools[append[i].gridItems[j].item.type].getObject());
+                append[i].gridItems[j].relayout();
+                append[i].gridItems[j].item.relayout();
+                if(GRID.$el.find('[data-pf="'+append[i].gridItems[j].$el.attr('data-pf')+'"]').length == 0) {
+                    GRID.$el.append(append[i].gridItems[j].$el);
+                }                
+            }
         }
+        // $(detach).css('opacity', 0);
+        // $(detach).detach();
+        // if(append != '') {
+        //     document.getElementById(this.$el.attr('id')).innerHTML += append;        
+        //     // this.$el.append(append);        
+        //     this.$el.find('div').delay(5).css('opacity', 1);
+        // }
     };
 
     Grid.prototype.relayout = function() {
@@ -287,9 +384,9 @@
             height: $(window).height()
         };
 
-        this.totalColumns = parseInt(this.window.width/(this.settings.columnWidth + this.settings.columnMargin));        
+        this.totalColumns = parseInt(this.window.width/(this.settings.columnWidth + this.settings.columnMargin));
 
-        for(var i = 0; i < this.pages.length; i++) {        
+        for(var i = 0; i < this.pages.length; i++) {
             this.pages[i].gridItems = [];
         }
         //     console.log('-',i);
@@ -306,7 +403,7 @@
         //     }                        
         // }
 
-        for(var i = 0; i < this.gridItems.length; i++) {            
+        for(var i = 0; i < this.gridItems.length; i++) {
             this.processGridItem(this.gridItems[i], false);
             this.currentColumn++;
 
@@ -322,6 +419,41 @@
         this.previousRow = [];
     };
 
+    var Pool = function(type) {
+        this.type = type;
+        this.inUse = [];
+        this.avaiable = [];
+        this.id = -1;
+    };
+
+    Pool.prototype.getObject = function() {
+        var $object = null;
+        if(this.avaiable.length == 0) {
+            this.id++;        
+            $object = $(GRID.settings.templates[this.type]);
+            this.inUse.push($object);
+            $object.attr('data-pf', this.id);            
+        } else {
+            $object = this.avaiable.shift();
+            this.inUse.push($object);            
+            // $object.attr('data-pf', this.inUse.length-1);            
+        }
+        // console.log('GET', 'In Use:', this.inUse.length, '::', 'Avaiable:',this.avaiable.length);
+        return $object;
+    };
+
+    Pool.prototype.release = function($object) {
+        // $object = $object.detach();
+        this.avaiable.push($object);
+        for(var i = 0; i < this.inUse.length; i++) {
+            if($object.attr('data-pf') == this.inUse[i].attr('data-pf')) {
+                this.inUse.splice(i, 1);
+                break;
+            }            
+        }        
+        // console.log('RELEASE', 'In Use:', this.inUse.length, '::', 'Avaiable:',this.avaiable.length);
+    }    
+
 
     $.fn.boxerGrid = function (options) {
 	  	var settings = $.extend({
@@ -329,7 +461,9 @@
 			columnWidth: 100,
 			columnMargin: 10,
 			positionOrder: 'dom',
-			debug: false
+			debug: false,
+            items: [],
+            templates: {}
 		}, options );
 
 		// if(settings.debug) {
@@ -357,8 +491,11 @@
                 GRID.init();
                 var end = new Date().getTime();
                 var time = end - start;      
-                console.log('INIT', 'Execution time:', time);                     
-            });            
+                console.log('INIT', GRID.gridItems.length + ' items initialized in:', time);                     
+
+                // window.pool = new Pool('box');
+                // //pool.getObject();         
+            });               
 	   //   	var $grid = $(this);     	
 	   //   	var totalColumns = 0;
 	   //   	var columns = [];
@@ -576,7 +713,7 @@
 	     		}
 	     		tt = setTimeout(function() {
                     var start = new Date().getTime();
-                    GRID.relayout();
+                    // GRID.relayout();
                     var end = new Date().getTime();
                     var time = end - start;      
                     console.log('RELAYOUT', 'Execution time:', time);    
