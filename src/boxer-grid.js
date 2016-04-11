@@ -53,10 +53,12 @@
     };
 
     GridItem.prototype.relayout = function() {
-        this.$el.css({
-            top: this.top, // - (this.pageNumber * (GRID.window.height * PAGE_HEIGHT)),
-            left: this.left,
-        });
+        if(this.$el) {
+            this.$el.css({
+                top: this.top, // - (this.pageNumber * (GRID.window.height * PAGE_HEIGHT)),
+                left: this.left,
+            });
+        }
     };
 
     GridItem.prototype.hide = function() {
@@ -187,6 +189,9 @@
 
         this.visibleTop = 0;
         this.visibleBottom = 0;
+
+        this.isUpdatingVisibility = false;
+        this.shouldUpdateVisibility = false;
     }
 
     Grid.prototype.init = function() {
@@ -284,7 +289,13 @@
         gridItem.relayout();
     };
 
-    Grid.prototype.updateVisibility = function(e) {                
+    Grid.prototype.updateVisibility = function(e) {
+        if(this.isUpdatingVisibility) {
+            this.shouldUpdateVisibility = true;
+            return;               
+        }
+        this.isUpdatingVisibility = true;
+
         this.scrollTop = $(window).scrollTop();
         this.visibleTop = this.scrollTop - (VISIBLE_PAGES * (GRID.window.height * PAGE_HEIGHT));
         this.visibleBottom = this.scrollTop + (GRID.window.height * PAGE_HEIGHT) + (VISIBLE_PAGES * (GRID.window.height * PAGE_HEIGHT));                
@@ -353,6 +364,7 @@
             for(var j = 0; j < detach[i].gridItems.length; j++) {                
                 if(detach[i].gridItems[j].item.$el) {                    
                     GRID.pools[detach[i].gridItems[j].item.type].release(detach[i].gridItems[j].item.$el);
+                    detach[i].gridItems[j].setEl(null);
                 } else {
                     break;
                 }                
@@ -376,6 +388,14 @@
         //     // this.$el.append(append);        
         //     this.$el.find('div').delay(5).css('opacity', 1);
         // }
+
+        this.$el.css('left', (this.window.width*.5) - ((this.totalColumns*this.settings.columnWidth)*.5) - (((this.totalColumns-1)*this.settings.columnMargin)*.5));
+
+        this.isUpdatingVisibility = false;
+        if(this.shouldUpdateVisibility) {
+            this.shouldUpdateVisibility = false;
+            this.updateVisibility();
+        }        
     };
 
     Grid.prototype.relayout = function() {
@@ -383,40 +403,52 @@
             width: $(window).width(),
             height: $(window).height()
         };
-
+        var oldTotalColumns = this.totalColumns;
         this.totalColumns = parseInt(this.window.width/(this.settings.columnWidth + this.settings.columnMargin));
 
-        for(var i = 0; i < this.pages.length; i++) {
-            this.pages[i].gridItems = [];
-        }
-        //     console.log('-',i);
-        //     for(var j = 0; j < this.pages[i].gridItems.length; j++) {
-        //         console.log('---',j);
-        //         this.processGridItem(this.pages[i].gridItems[j]);
-        //         self.currentColumn++;
+        console.log('Old Total Columns:', oldTotalColumns);
+        console.log('New Total Columns:', this.totalColumns);
 
-        //         if(self.currentColumn == self.totalColumns) {
-        //             self.previousRow = self.currentRow;
-        //             self.currentRow = [];
-        //             self.currentColumn = 0;
-        //         }
-        //     }                        
-        // }
+        if(oldTotalColumns != this.totalColumns) {
+            this.processedGridItems = 0;
 
+            this.currentColumn = 0;
+            this.currentRow = [];
+            this.previousRow = [];
+            
+            delete this.pages;
+            this.pages = [];
+
+            this.$el.empty();
+
+            this.updateVisibility();
+        }        
+    };
+
+    Grid.prototype.update = function($el) {
+        var mTop = $el.offset().top - this.$el.offset().top;
+        var mLeft = $el.offset().left - this.$el.offset().left;  
+        var diffHeight = $el.height();      
         for(var i = 0; i < this.gridItems.length; i++) {
-            this.processGridItem(this.gridItems[i], false);
-            this.currentColumn++;
-
-            if(this.currentColumn == this.totalColumns) {
-                this.previousRow = this.currentRow;
-                this.currentRow = [];
-                this.currentColumn = 0;
+            // console.log('----', i, '----');
+            // console.log('top:', mTop, '=',this.gridItems[i].top);
+            // console.log('left:', mLeft, '=',this.gridItems[i].left);            
+            // console.log('top > other_top', mTop > this.gridItems[i].top);
+            // console.log('top = other_top', mTop == this.gridItems[i].top);
+            // console.log('left = other_left', mLeft == this.gridItems[i].left);
+            if(mTop < this.gridItems[i].top && mLeft == this.gridItems[i].left) {
+                // console.log('same column');
+                this.gridItems[i].top += diffHeight;                
+                this.gridItems[i].relayout();
+            } else if (mTop == this.gridItems[i].top && mLeft == this.gridItems[i].left) {
+                // console.log('the item');
+                diffHeight -= this.gridItems[i].height;
+                // diffHeight *= -1;
+                this.gridItems[i].height = $el.height();
             }
+            // console.log('----', '#', '----');
+            // console.log('');
         }
-
-        this.currentColumn = 0;
-        this.currentRow = [];
-        this.previousRow = [];
     };
 
     var Pool = function(type) {
@@ -484,219 +516,15 @@
 
 		// }
 
-	    return this.each(function (i) {
+	    this.each(function (i) {
             GRID = new Grid($(this), settings);            
             $( window ).load(function() {
                 var start = new Date().getTime();
                 GRID.init();
                 var end = new Date().getTime();
                 var time = end - start;      
-                console.log('INIT', GRID.gridItems.length + ' items initialized in:', time);                     
-
-                // window.pool = new Pool('box');
-                // //pool.getObject();         
-            });               
-	   //   	var $grid = $(this);     	
-	   //   	var totalColumns = 0;
-	   //   	var columns = [];
-	   //   	var visibleAreaHeight = 0;
-	   //   	var windowHeight = 0;
-	   //   	var visibleAreaHeightHalf = 0;
-	   //   	var windowHeightHalf = 0;
-
-	   //   	$grid.find(settings.itemSelector).css('visibility', 'hidden');
-
-	   //   	function relayout() {
-	   //   		windowHeight = $(window).height();
-	   //   		windowHeightHalf = windowHeight*.5;
-
-	   //   		visibleAreaHeight = ($(window).height()*.5);
-	   //   		visibleAreaHeightHalf = visibleAreaHeight*.5;
-
-	   //   		var scrollTop = $(window).scrollTop();
-	   //   		var visibleAreaRec = {
-	 		// 		// x1: 0,
-	 		// 		// x2: $(window).width(),
-	 		// 		y1: scrollTop + windowHeightHalf - visibleAreaHeightHalf,
-	 		// 		y2: scrollTop + windowHeightHalf + visibleAreaHeightHalf,
-	 		// 	}; 	
-
-	   //   		if(settings.debug) {
-	   //   			$boxerDebugBoxWindow
-	   //   				.css('height', visibleAreaHeight)
-	   //   				.css('width', $(window).width())
-	   //   				.css('top', ($(window).height()*.5) - ($boxerDebugBoxWindow.height()*.5));     			
-	   //   		}
-	     		
-	   //   		totalColumns = parseInt($(window).width()/(settings.columnWidth + settings.columnMargin));
-
-	   //   		var remainingWidth = $(window).width() - ((totalColumns * settings.columnWidth) + ((totalColumns-1) * settings.columnMargin));     		
-	   //   		$grid
-	   //   			.css('left', remainingWidth*.5)
-	   //   			.css('width', $(window).width() - remainingWidth);
-
-	   //   		var oldRow = [];
-	   //   		var currentRow = [];
-
-	   //   		var currentColumn = 0;
-	   //   		$grid.find(settings.itemSelector).each(function() {     			     			
-	   //   			var newTL = {
-	   //   				top: 0,
-	   //   				left: (currentColumn * settings.columnWidth) + (currentColumn * settings.columnMargin)
-	   //   			};     			
-
-
-	   //   			var thisRow = {
-	   //   				top: 0,
-	   //   				height: $(this).height()
-	   //   			};
-
-	   //   			if(oldRow[currentColumn]) {     				
-	   //   				if(settings.positionOrder == 'dom') {     				
-	   //   					thisRow.top = oldRow[currentColumn].top + oldRow[currentColumn].height + settings.columnMargin;     					
-	   //   					currentRow[currentColumn] = thisRow;
-	   //   				} else if (settings.positionOrder == "space") {
-	     					
-	   //   					var minTop = null;     					
-	   //   					var selectedColumn = 0;
-	   //   					for(var cColumn = 0; cColumn < oldRow.length; cColumn++) {     						
-	   //   						if(currentRow[cColumn]) continue;     						
-	   //   						if(minTop == null) {
-	   //   							minTop = oldRow[cColumn].top + oldRow[cColumn].height;
-	   //   							selectedColumn = cColumn;
-	   //   							continue;
-	   //   						}
-	   //   						if(oldRow[cColumn].top + oldRow[cColumn].height < minTop) {
-	   //   							minTop = oldRow[cColumn].top + oldRow[cColumn].height;
-	   //   							selectedColumn = cColumn;
-	   //   							continue;	
-	   //   						}
-	   //   					}    
-	     							
-	   //   					newTL.left = (selectedColumn * settings.columnWidth) + (selectedColumn * settings.columnMargin);     					
-	   //   					thisRow.top = oldRow[selectedColumn].top + oldRow[selectedColumn].height + settings.columnMargin;
-
-	   //   					currentRow[selectedColumn] = thisRow;
-	   //   				}
-
-	   //   				newTL.top = thisRow.top;
-	   //   				$(this).css('top', thisRow.top);
-	   //   			} else {
-	   //   				currentRow[currentColumn] = thisRow;
-	   //   			}
-
-	   //   			$(this).css('left', newTL.left);     			
-	     			
-	   //   			toogleVisibility($(this), newTL, visibleAreaRec);
-
-	   //   			currentColumn++;
-
-	   //   			if(currentColumn == totalColumns) {
-	   //   				oldRow = currentRow;
-	   //   				currentRow = [];
-	   //   				currentColumn = 0;
-	   //   			}
-	   //   		});
-	   //   	}
-
-	   //   	function relayoutVisibility() {
-	   //   		var start = new Date().getTime();
-
-	   //   		var scrollTop = $(window).scrollTop();
-
-	   //   		var oldRow = [];
-	   //   		var currentRow = [];
-
-	   //   		var currentColumn = 0;
-
-	   //   		var visibleAreaRec = {
-	 		// 		// x1: 0,
-	 		// 		// x2: $(window).width(),
-	 		// 		y1: scrollTop + windowHeightHalf - visibleAreaHeightHalf - 150,
-	 		// 		y2: scrollTop + windowHeightHalf + visibleAreaHeightHalf + 150,
-	 		// 	}; 			
-
-	   //   		$grid.find(settings.itemSelector).each(function() {     			     			
-	   //   			var elHeight = $(this).height();
-	   //   			var newTL = {
-	   //   				top: 0,
-	   //   				left: (currentColumn * settings.columnWidth) + (currentColumn * settings.columnMargin)
-	   //   			};     			
-
-
-	   //   			var thisRow = {
-	   //   				top: 0,
-	   //   				height: elHeight
-	   //   			};
-
-	   //   			if(oldRow[currentColumn]) {     				
-	   //   				if(settings.positionOrder == 'dom') {     				
-	   //   					thisRow.top = oldRow[currentColumn].top + oldRow[currentColumn].height + settings.columnMargin;     					
-	   //   					currentRow[currentColumn] = thisRow;
-	   //   				} else if (settings.positionOrder == "space") {
-	     					
-	   //   					var minTop = null;     					
-	   //   					var selectedColumn = 0;
-	   //   					for(var cColumn = 0; cColumn < oldRow.length; cColumn++) {     						
-	   //   						if(currentRow[cColumn]) continue;     						
-	   //   						if(minTop == null) {
-	   //   							minTop = oldRow[cColumn].top + oldRow[cColumn].height;
-	   //   							selectedColumn = cColumn;
-	   //   							continue;
-	   //   						}
-	   //   						if(oldRow[cColumn].top + oldRow[cColumn].height < minTop) {
-	   //   							minTop = oldRow[cColumn].top + oldRow[cColumn].height;
-	   //   							selectedColumn = cColumn;
-	   //   							continue;	
-	   //   						}
-	   //   					}    
-	     							
-	   //   					newTL.left = (selectedColumn * settings.columnWidth) + (selectedColumn * settings.columnMargin);     					
-	   //   					thisRow.top = oldRow[selectedColumn].top + oldRow[selectedColumn].height + settings.columnMargin;
-
-	   //   					currentRow[selectedColumn] = thisRow;
-	   //   				}
-
-	   //   				newTL.top = thisRow.top;     				
-	   //   			} else {
-	   //   				currentRow[currentColumn] = thisRow;
-	   //   			}     			
-	     			
-	   //   			toogleVisibility($(this), newTL, visibleAreaRec);
-
-	   //   			currentColumn++;
-
-	   //   			if(currentColumn == totalColumns) {
-	   //   				oldRow = currentRow;
-	   //   				currentRow = [];
-	   //   				currentColumn = 0;
-	   //   			}
-	   //   		});
-
-	   //   		var end = new Date().getTime();
-				// var time = end - start;		
-				// console.log('Execution time:', time);	
-	   //   	}
-
-	   //   	function toogleVisibility($el, topLeft, visibleAreaRec) {     		
-
-	 		// 	var pointsToTest = {
-	 		// 		y1: topLeft.top,
-	 		// 		y2: topLeft.top + $el.height()
-	 		// 	};
-	 			
-	 		// 	if(
-	 		// 		(pointsToTest.y1 >= visibleAreaRec.y1 && pointsToTest.y1 <= visibleAreaRec.y2) ||
-	 		// 		(pointsToTest.y2 >= visibleAreaRec.y1 && pointsToTest.y2 <= visibleAreaRec.y2) ||
-	 		// 		(pointsToTest.y1 <= visibleAreaRec.y1 && pointsToTest.y2 >= visibleAreaRec.y2)
-	 		// 		) { 				
-	 		// 		$el.css('visibility', 'visible'); 				
-	 		// 	} else { 				
-	 		// 		$el.css('visibility', 'hidden'); 				
-	 		// 	}
-	   //   	}
-
-	   //   	relayout();
+                console.log('INIT', GRID.gridItems.length + ' items initialized in:', time);                                     
+            });               	  
 	   
 	     	$(window).on('scroll', function() {
 	     		var start = new Date().getTime();
@@ -713,12 +541,13 @@
 	     		}
 	     		tt = setTimeout(function() {
                     var start = new Date().getTime();
-                    // GRID.relayout();
+                    GRID.relayout();
                     var end = new Date().getTime();
                     var time = end - start;      
                     console.log('RELAYOUT', 'Execution time:', time);    
                 }, 250);
-	     	});    
-	    });	
+	     	});             
+	    });        
+        return GRID;	
 	  };
 }(jQuery));
