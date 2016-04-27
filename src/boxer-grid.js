@@ -77,7 +77,7 @@
 
     function Page() {        
         this.gridItems = [];
-        this.$el = createEmptyDiv();
+        // this.$el = createEmptyDiv();
         this.pageNumber = 0;
         this.top = 0;
         this.bottom = 0;
@@ -87,29 +87,29 @@
     Page.prototype.init = function(pageNumber) {
         this.pageNumber = pageNumber;
         
-        this.$el.attr('id', 'grid-page-'+pageNumber);
-        this.$el.attr('data-grid-type', 'page');
-        this.$el.css({
-            'position': 'absolute',            
-            'width': '100%',
-            'height': (GRID.window.height * PAGE_HEIGHT),
-            'top': 60+(pageNumber * (GRID.window.height * PAGE_HEIGHT)),
-            // 'box-sizing': 'border-box',
-            // '-moz-box-sizing': 'border-box',
-            // '-webkit-box-sizing': 'border-box',
-            // 'border': '1px solid black',
-            // 'z-index': '-1',
-            'opacity': 1,
-            '-webkit-transition': 'opacity 0.5s ease-out',
-            'transition': 'opacity 0.5s ease-out'
-        });
+        // this.$el.attr('id', 'grid-page-'+pageNumber);
+        // this.$el.attr('data-grid-type', 'page');
+        // this.$el.css({
+        //     'position': 'absolute',            
+        //     'width': '100%',
+        //     'height': (GRID.window.height * PAGE_HEIGHT),
+        //     'top': 60+(pageNumber * (GRID.window.height * PAGE_HEIGHT)),
+        //     // 'box-sizing': 'border-box',
+        //     // '-moz-box-sizing': 'border-box',
+        //     // '-webkit-box-sizing': 'border-box',
+        //     // 'border': '1px solid black',
+        //     // 'z-index': '-1',
+        //     'opacity': 1,
+        //     '-webkit-transition': 'opacity 0.5s ease-out',
+        //     'transition': 'opacity 0.5s ease-out'
+        // });
         
 
-        shuffle(colors);
-        var color = colors[Math.floor(Math.random() * colors.length)];
-        this.$el.addClass(color);
+        // shuffle(colors);
+        // var color = colors[Math.floor(Math.random() * colors.length)];
+        // this.$el.addClass(color);
 
-        $('body').append(this.$el);
+        // $('body').append(this.$el);
 
         this.top = pageNumber * (GRID.window.height * PAGE_HEIGHT);
         this.bottom = this.top + (GRID.window.height * PAGE_HEIGHT);
