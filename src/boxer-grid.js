@@ -11,7 +11,7 @@
         VISIBLE_PAGES = NUM_PAGES*1
         PAGE_HEIGHT = 1;
         
-        var colors = ['alizarin', 'carrot', 'nephrits', 'wisteria', 'midnight_blue', 'concrete'];
+        var colors = ['alizarin', 'carrot', 'nephrits', 'wisteria', 'midnight_blue', 'concrete', 'alizarin', 'carrot', 'nephrits', 'wisteria', 'midnight_blue', 'concrete', 'alizarin', 'carrot', 'nephrits', 'wisteria', 'midnight_blue', 'concrete'];
         function shuffle(a) {
           var j, x, i;
           for (i = a.length; i; i -= 1) {
@@ -77,7 +77,7 @@
 
     function Page() {        
         this.gridItems = [];
-        // this.$el = createEmptyDiv();
+        this.$el = createEmptyDiv();
         this.pageNumber = 0;
         this.top = 0;
         this.bottom = 0;
@@ -87,29 +87,29 @@
     Page.prototype.init = function(pageNumber) {
         this.pageNumber = pageNumber;
         
-        // this.$el.attr('id', 'grid-page-'+pageNumber);
-        // this.$el.attr('data-grid-type', 'page');
-        // this.$el.css({
-        //     'position': 'absolute',            
-        //     'width': '100%',
-        //     'height': (GRID.window.height * PAGE_HEIGHT),
-        //     'top': pageNumber * (GRID.window.height * PAGE_HEIGHT),
-        //     // 'box-sizing': 'border-box',
-        //     // '-moz-box-sizing': 'border-box',
-        //     // '-webkit-box-sizing': 'border-box',
-        //     // 'border': '1px solid black',
-        //     // 'z-index': '-1',
-        //     'opacity': 1,
-        //     '-webkit-transition': 'opacity 0.5s ease-out',
-        //     'transition': 'opacity 0.5s ease-out'
-        // });
+        this.$el.attr('id', 'grid-page-'+pageNumber);
+        this.$el.attr('data-grid-type', 'page');
+        this.$el.css({
+            'position': 'absolute',            
+            'width': '100%',
+            'height': (GRID.window.height * PAGE_HEIGHT),
+            'top': 60+(pageNumber * (GRID.window.height * PAGE_HEIGHT)),
+            // 'box-sizing': 'border-box',
+            // '-moz-box-sizing': 'border-box',
+            // '-webkit-box-sizing': 'border-box',
+            // 'border': '1px solid black',
+            // 'z-index': '-1',
+            'opacity': 1,
+            '-webkit-transition': 'opacity 0.5s ease-out',
+            'transition': 'opacity 0.5s ease-out'
+        });
         
 
-        // shuffle(colors);
-        // var color = colors[Math.floor(Math.random() * colors.length)];
-        // this.$el.addClass(color);
+        shuffle(colors);
+        var color = colors[Math.floor(Math.random() * colors.length)];
+        this.$el.addClass(color);
 
-        // GRID.$el.append(this.$el);
+        $('body').append(this.$el);
 
         this.top = pageNumber * (GRID.window.height * PAGE_HEIGHT);
         this.bottom = this.top + (GRID.window.height * PAGE_HEIGHT);
@@ -127,13 +127,13 @@
         GRID.$el.append($els);
     };
 
-    Page.prototype.checkVisibility = function() {
+    Page.prototype.checkVisibility = function(force) {
         if(
             (this.top >= GRID.visibleTop && this.top <= GRID.visibleBottom) ||
             (this.bottom >= GRID.visibleTop && this.bottom <= GRID.visibleBottom) ||
             (this.top <= GRID.visibleTop && this.bottom >= GRID.visibleBottom)
         ) {
-            if(!this.isVisible){
+            if(!this.isVisible || force){
                 // GRID.$el.append(this.$el);
                 this.isVisible = true;
                 // for(var i = 0; i < this.gridItems.length; i++) {
@@ -146,7 +146,7 @@
             }            
             // this.$el.css('visibility', 'visible');            
         } else {
-            if(this.isVisible) {
+            if(this.isVisible || force) {
                 // this.$el = this.$el.detach();
                 this.isVisible = false;
                 // for(var i = 0; i < this.gridItems.length; i++) {     
@@ -201,8 +201,7 @@
         // Loop over itens to put it in pages
         // this.$el.find(this.settings.itemSelector).each(function() {     
         for(var i = 0; i < this.settings.items.length; i++) {                            
-            var gridItem = new GridItem(this.settings.items[i]);
-            this.gridItems.push(gridItem);
+            this.addGridItem(this.settings.items[i])            
             // gridItem.width = gridItem.$el.width();
             // gridItem.height = gridItem.$el.height();
 
@@ -229,6 +228,11 @@
         
 
         this.updateVisibility();
+    };
+
+    Grid.prototype.addGridItem = function(item) {
+        var gridItem = new GridItem(item);
+        this.gridItems.push(gridItem);
     };
 
     Grid.prototype.processGridItem = function(gridItem, addToArray) {
@@ -284,16 +288,28 @@
 
         page.append(gridItem);
         // if(addToArray !== false)
-        //     this.gridItems.push(gridItem);
+        //     this.gridItems.push(gridItem);        
         gridItem.pageNumber = page.pageNumber;
         gridItem.relayout();
     };
 
-    Grid.prototype.updateVisibility = function(e) {
+    Grid.prototype.updateVisibility = function(force) {
         if(this.isUpdatingVisibility) {
             this.shouldUpdateVisibility = true;
             return;               
         }
+        if(typeof force === undefined) force = false;
+
+        // if(force){
+        //     for(var i = 0; i < this.processedGridItems; i++) {
+        //         var gridItem = this.gridItems[i];
+
+        //         this.pools[gridItem.item.type].release(gridItem.$el);
+
+        //         gridItem.setEl(null);
+        //     }
+        // }
+
         this.isUpdatingVisibility = true;
 
         this.scrollTop = $(window).scrollTop();
@@ -303,10 +319,9 @@
         var mustProcess = false;
         if(this.processedGridItems < this.gridItems.length) {
             mustProcess = true;
-        }
-
+        }        
         
-        while(mustProcess) {
+        while(mustProcess) {            
             var gridItem = this.gridItems[this.processedGridItems];
 
 
@@ -344,16 +359,17 @@
             gridItem.setEl(null);
         }
 
-        this.currentColumn = 0;
-        this.currentRow = [];
-        this.previousRow = [];
+        // this.currentColumn = 0;
+        // this.currentRow = [];
+        // this.previousRow = [];
 
         this.$el.css('height', this.pages.length * (GRID.window.height * PAGE_HEIGHT));
 
         var append = [];
         var detach = [];
         for(var i = this.pages.length - 1; i >= 0; i--) {
-            var obj = this.pages[i].checkVisibility();    
+            console.log(i, this.pages[i].isVisible);
+            var obj = this.pages[i].checkVisibility(force);    
             if(obj) {
                 if(obj.action == "append") append.push(this.pages[i]);
                 if(obj.action == "detach") detach.push(this.pages[i]);
@@ -484,7 +500,7 @@
             }            
         }        
         // console.log('RELEASE', 'In Use:', this.inUse.length, '::', 'Avaiable:',this.avaiable.length);
-    }    
+    };    
 
 
     $.fn.boxerGrid = function (options) {
