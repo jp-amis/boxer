@@ -230,6 +230,21 @@
         this.updateVisibility();
     };
 
+    Grid.prototype.resetFrom = function(pos) {
+        this.gridItems = this.gridItems.slice(0, pos);
+
+        this.processedGridItems = 0;
+
+        this.currentColumn = 0;
+        this.currentRow = [];
+        this.previousRow = [];
+        
+        delete this.pages;
+        this.pages = [];
+
+        this.$el.empty();
+    };
+
     Grid.prototype.addGridItem = function(item) {
         var gridItem = new GridItem(item);
         this.gridItems.push(gridItem);
